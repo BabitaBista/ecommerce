@@ -8,6 +8,7 @@ class Customer(models.Model):
     address = models.CharField(max_length=200, null=True, blank=True)
     joined_on = models.DateTimeField(auto_now_add=True)
 
+
 class Category(models.Model):
     title = models.CharField(max_length=100)
     slug = models.SlugField(unique=True)
@@ -62,6 +63,12 @@ ORDER_STATUS = (
 )
 
 
+METHOD = (
+    ("Cash On Delivery", "Cash on Delivery"),
+    ("Khalti", "Khalti"),
+)
+
+
 class Order(models.Model):
     cart = models.OneToOneField(Cart, on_delete=models.CASCADE)
     ordered_by = models.CharField(max_length=200)
@@ -73,6 +80,8 @@ class Order(models.Model):
     total = models.PositiveIntegerField()
     order_status = models.CharField(max_length=50, choices=ORDER_STATUS)
     created_at = models.DateTimeField(auto_now_add=True)
+    payment_method = models.CharField(max_length=20, choices=METHOD)
+    payment_completed = models.BooleanField(default=False, null=True, blank=True)
 
     def __str__(self):
         return "Order: " + str(self.id)

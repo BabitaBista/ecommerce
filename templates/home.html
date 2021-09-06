@@ -3,7 +3,28 @@
 {% block title %} Home{% endblock %}
 
 {% block content %}
-    <h1>Welcome to home page</h1>
+<div class="container">
+    <h1 class="text-center">Welcome to home page</h1>
+    <div class="row">
+        <p> {{ myname }} </p>
+        <hr>
+        {% for p in product_list %}
+        <div class="col-mt-3">
+            <div class="m-3">
+                <h3><a href="{% url 'ecomapp:productdetail' p.slug %}">{{ p.title }}</a></h3>
+                <hr>
+                <a href="{% url 'ecomapp:productdetail' p.slug %}">
+                <img src="{{ p.image.url }}" alt="" width="300" ></a>
+                <p>Price: <strike>Rs. {{p.marked_price}}</strike> Rs. {{p.selling_price}}</p>
+                <a href="{% url 'ecomapp:addtocart' p.id %}" class="btn btn-primary">Add to cart</a>
+            </div>
+        </div>
+        {% endfor %}
+
+    </div>
+</div>
 {% endblock %}
+
+
 
 
