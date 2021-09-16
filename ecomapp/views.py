@@ -1,6 +1,8 @@
-from django.shortcuts import render,redirect
-from django.views.generic import View, TemplateView
+from django.shortcuts import render, redirect
+from django.views.generic import View, TemplateView, CreateView
 from .models import *
+from .forms import CheckoutForm
+from django.urls import *
 
 
 class HomeView(TemplateView):
@@ -149,5 +151,43 @@ class MyCartView(TemplateView):
         return context
 
 
+class CheckoutView(CreateView):
+    template_name = "checkout.html"
+    form_class = CheckoutForm
+    success_url = reverse_lazy('ecomapp:home')
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        cart_id = self.request.session.get("cart_id", None)
+        if cart_id:
+            cart_obj = Cart.objects.get(id=cart_id)
+        else:
+            cart_obj = None
+        context['cart'] = cart_obj
+        return context
+
+    def form_valid(self, form):
+        cart_id = self.request.session.get('cart_id')
+        if cart_id:
+            cart_obj = Cart.objects.get(id=cart_id)
+            form.instance.cart = cart_obj
+            form.instance.subtotal = cart_obj.total
+            form.instance.discount = 0
+            form.instance.total = cart_obj.total
+            form.instance.order_status = "Order Received"
+            del self.request.session['cart_id']
+        else:
+            return redirect("ecomapp:home")
+        return super().form_valid(form)
+
+
 class ContactUsView(TemplateView):
     template_name = "contactUs.html"
+
+#
+# class RegisterView(TemplateView):
+#     template_name = "register.html"
+#
+#
+# class LoginView(TemplateView):
+#     template_name = "login.html"

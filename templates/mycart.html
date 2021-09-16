@@ -39,9 +39,12 @@
                                 <th>Rs. {{cart.total}}</th>
                                 {% if cart.cartproduct_set.all %}
                                 <th><a href="{% url 'ecomapp:emptycart' %}">Empty Cart</a></th>
-                                {% endif %}
-                            </tr>
 
+                            </tr>
+                            <tr>
+                                <th><a href="{%url 'ecomapp:checkout'  %}">Checkout</a></th>
+                            </tr>
+                            {% endif %}
                     </tbody>
                 </table>
             </div>
