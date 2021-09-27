@@ -1,11 +1,25 @@
+from django.contrib.auth import authenticate, login, logout
 from django.shortcuts import render, redirect
-from django.views.generic import View, TemplateView, CreateView
+from django.views.generic import View, TemplateView, CreateView, FormView
+
+from .forms import CheckoutForm, CustomerRegistrationForm, CustomerLoginForm
+from django.urls import reverse_lazy
 from .models import *
-from .forms import CheckoutForm
-from django.urls import *
 
 
-class HomeView(TemplateView):
+class EcomMixin(object):
+    def dispatch(self, request, *args, **kwargs):
+        cart_id = request.session.get('cart_id')
+        if cart_id:
+            cart_obj = Cart.objects.get(id=cart_id)
+            if request.user.is_authenticated and request.user.customer:
+                cart_obj.customer = request.user.customer
+                cart_obj.save()
+
+        return super().dispatch(request, *args, **kwargs)
+
+
+class HomeView(EcomMixin, TemplateView):
     template_name = "home.html"
 
     def get_context_data(self, **kwargs):
@@ -15,7 +29,7 @@ class HomeView(TemplateView):
         return context
 
 
-class AllProductsView(TemplateView):
+class AllProductsView(EcomMixin, TemplateView):
     template_name = "all_products.html"
 
     def get_context_data(self, **kwargs):
@@ -24,7 +38,7 @@ class AllProductsView(TemplateView):
         return context
 
 
-class ProductDetailView(TemplateView):
+class ProductDetailView(EcomMixin,TemplateView):
     template_name = "productdetail.html"
 
     def get_context_data(self, **kwargs):
@@ -37,7 +51,7 @@ class ProductDetailView(TemplateView):
         return context
 
 
-class AddToCartView(TemplateView):
+class AddToCartView(EcomMixin, TemplateView):
     template_name = "addtocart.html"
 
     def get_context_data(self, **kwargs):
@@ -85,11 +99,11 @@ class AddToCartView(TemplateView):
         return context
 
 
-class AboutView(TemplateView):
+class AboutView(EcomMixin, TemplateView):
     template_name = "about.html"
 
 
-class ManageCartView(View):
+class ManageCartView(EcomMixin, View):
     def get(self, request, *args, **kwargs):
         # print("manage cart part")
         # to use dynamic id self.kwargs is used
@@ -124,7 +138,7 @@ class ManageCartView(View):
         return redirect('ecomapp:mycart')
 
 
-class EmptyCartView(View):
+class EmptyCartView(EcomMixin, View):
     def get(self, request, *args, **kwargs):
         cart_id = request.session.get("cart_id", None)
         if cart_id:
@@ -135,7 +149,7 @@ class EmptyCartView(View):
         return redirect("ecomapp:mycart")
 
 
-class MyCartView(TemplateView):
+class MyCartView(EcomMixin, TemplateView):
     template_name = "mycart.html"
 
     def get_context_data(self, **kwargs):
@@ -151,11 +165,26 @@ class MyCartView(TemplateView):
         return context
 
 
-class CheckoutView(CreateView):
+class CheckoutView(EcomMixin, CreateView):
     template_name = "checkout.html"
     form_class = CheckoutForm
     success_url = reverse_lazy('ecomapp:home')
 
+    # dispatch run at the first or beginning before other method, check user is logged in or not
+    # @method_decorator(auth_middleware, name='dispatch')
+    def dispatch(self, request, *args, **kwargs):
+        if request.user.is_authenticated and request.user.customer:
+            # print('logged in user')
+            pass
+        else:
+            # return redirect("/login")
+            return redirect("/login/?next=/checkout/")
+    #     #     # print("Not logged in user")
+    #
+        return super().dispatch(request, *args, **kwargs)
+
+    # @method_decorator(auth_middleware, name='dispatch')
+    # @login_required
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
         cart_id = self.request.session.get("cart_id", None)
@@ -184,10 +213,49 @@ class CheckoutView(CreateView):
 class ContactUsView(TemplateView):
     template_name = "contactUs.html"
 
-#
-# class RegisterView(TemplateView):
-#     template_name = "register.html"
-#
-#
-# class LoginView(TemplateView):
-#     template_name = "login.html"
+
+class RegisterView(CreateView):
+    template_name = "register.html"
+    form_class = CustomerRegistrationForm
+    success_url = reverse_lazy('ecomapp:home')
+
+    # to handle form and available only in createview, updadteview, formview
+    def form_valid(self, form):
+        # grab data from query dictionary
+        username = form.cleaned_data.get('username')
+        password = form.cleaned_data.get('password')
+        email = form.cleaned_data.get('email')
+
+        user = User.objects.create_user(username, password, email)
+        form.instance.user = user
+        # immediately login user after registration
+        login(self.request, user)
+        return super().form_valid(form)
+
+
+class LogoutView(View):
+    def get(self, request):
+        logout(request)
+        return redirect('ecomapp:home')
+
+
+class LoginView(FormView):
+    template_name = "login.html"
+    form_class = CustomerLoginForm
+    success_url = reverse_lazy('ecomapp:home')
+
+    def form_valid(self, form):
+        # grab data from query dict
+        un = form.cleaned_data.get('username')
+        pw = form.cleaned_data.get('password')
+
+        user = authenticate( username=un, password=pw)
+        if user is not None and user.customer:
+            print('logged in')
+            login(self.request, user)
+
+        else:
+            print('not logged in')
+            # return render(self.request)
+            return render(self.request, self.template_name, {"form": self.form_class, "error":"Invalid credential"})
+        return super().form_valid(form)
